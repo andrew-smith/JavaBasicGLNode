@@ -1,4 +1,5 @@
 
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -112,7 +113,7 @@ public class ShaderNode extends Node
         //ensure vertex was compiled
         int[] status = new int[1];
         gl.glGetShaderiv(vertexShader, GL.GL_COMPILE_STATUS, status, 0);
-        if(status[0] != 0) //then something went wrong
+        if(status[0] != GL.GL_TRUE) //then something went wrong
         {
             Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error compiling VERTEX shader");
             return;
@@ -123,8 +124,8 @@ public class ShaderNode extends Node
         gl.glCompileShader(fragmentShader);
 
         //ensure frag was compiled
-        gl.glGetShaderiv(vertexShader, GL.GL_COMPILE_STATUS, status, 0);
-        if(status[0] != 0) //then something went wrong
+        gl.glGetShaderiv(fragmentShader, GL.GL_COMPILE_STATUS, status, 0);
+        if(status[0] != GL.GL_TRUE) //then something went wrong
         {
             Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error compiling FRAGMENT shader");
             return;
@@ -140,7 +141,7 @@ public class ShaderNode extends Node
 
         //ensure shader was linked
         gl.glGetProgramiv(shaderProgram, GL.GL_LINK_STATUS, status, 0);
-        if(status[0] != 0) //then something went wrong
+        if(status[0] != GL.GL_TRUE) //then something went wrong
         {
             Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error linking shader program");
             return;
@@ -150,6 +151,7 @@ public class ShaderNode extends Node
         super.init(gl);
     }
 
+    
 
     /**
      * Gets the shader program of this node.
@@ -167,6 +169,7 @@ public class ShaderNode extends Node
      */
     public void turnOnShader(GL gl)
     {
+
         gl.glUseProgram(shaderProgram);
     }
 
