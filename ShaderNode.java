@@ -65,7 +65,7 @@ public class ShaderNode extends Node
             String line = null;
             while ((line = br.readLine()) != null)
             {
-                data += line;
+                data += line + "\n";
             }
             
             if(shaderType == GL.GL_VERTEX_SHADER)
