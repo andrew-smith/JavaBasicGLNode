@@ -1,7 +1,6 @@
+package scene;
 
-import javax.media.opengl.GL;
-
-
+ 
 
 /**
  * Describes a renderable node
@@ -48,12 +47,12 @@ public class RenderableNode extends Node
      * @param gl
      */
     @Override
-    public void init(GL gl)
+    public void init()
     {
         if(renderTarget != null)
-            renderTarget.init(gl);
+            renderTarget.init();
 
-        super.init(gl);
+        super.init();
     }
 
     /**
@@ -73,16 +72,16 @@ public class RenderableNode extends Node
      * @param gl
      */
     @Override
-    public void draw(GL gl)
+    public void draw()
     {
-        preDraw(gl);
+        preDraw();
 
         if(renderTarget != null)
-            renderTarget.draw(gl);
+            renderTarget.draw();
 
-        super.draw(gl);
+        super.draw();
 
-        postDraw(gl);
+        postDraw();
     }
 
 }

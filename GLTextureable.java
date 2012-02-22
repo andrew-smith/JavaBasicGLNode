@@ -1,14 +1,18 @@
+package scene;
 
 
+import static org.lwjgl.opengl.GL11.*;
 
-import com.sun.opengl.util.texture.Texture;
-import com.sun.opengl.util.texture.TextureIO;
+import de.matthiasmann.twl.utils.PNGDecoder;
+import de.matthiasmann.twl.utils.PNGDecoder.Format;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.media.opengl.GL;
-import javax.media.opengl.GLException;
 
 /**
  * Defines a textureable object
@@ -16,9 +20,12 @@ import javax.media.opengl.GLException;
  */
 public abstract class GLTextureable implements GLRenderable
 {
+    /** Value for no texture */
+    private static final int NO_TEXTURE_ID = -1;
 
-    /* Texture object to load */
-    private Texture texture;
+    /* Texture object */
+    private int textureID = NO_TEXTURE_ID;
+    
     
     /** The filename of the texture to bind */
     private String fileName;
@@ -28,7 +35,6 @@ public abstract class GLTextureable implements GLRenderable
      */
     public GLTextureable()
     {
-        texture = null;
     }
 
 
@@ -47,22 +53,21 @@ public abstract class GLTextureable implements GLRenderable
      */
     public boolean textureLoaded()
     {
-        return texture != null;
+        return textureID != NO_TEXTURE_ID;
     }
 
     /**
      * Binds the texture
      * @param gl
      */
-    public void bindTexture(GL gl)
+    public void bindTexture()
     {
-        if(texture != null)
+        if(textureLoaded())
         {
-            gl.glEnable (GL.GL_BLEND);
-            gl.glBlendFunc (GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
-            gl.glEnable(GL.GL_TEXTURE_2D);
-            texture.enable();
-            texture.bind();
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, textureID);
         }
     }
 
@@ -71,14 +76,13 @@ public abstract class GLTextureable implements GLRenderable
      * Unbinds the texture
      * @param gl
      */
-    public void unbindTexture(GL gl)
+    public void unbindTexture()
     {
-        if(texture != null)
+        if(textureLoaded())
         {
-            gl.glDisable(GL.GL_TEXTURE_2D);
-            gl.glBlendFunc (GL.GL_ONE, GL.GL_ZERO);
-            gl.glDisable (GL.GL_BLEND);
-            texture.disable();
+            glDisable(GL_TEXTURE_2D);
+            glBlendFunc(GL_ONE, GL_ZERO);
+            glDisable(GL_BLEND);
         }
     }
 
@@ -86,22 +90,48 @@ public abstract class GLTextureable implements GLRenderable
 
     /**
      * Inits the texture file
-     * @param gl
      */
-    public void init(GL gl)
+    public void init()
     {
-        try
+        if(fileName != null)
         {
-            if(fileName != null)
-                texture = TextureIO.newTexture(new File(fileName), false);
-        }
-        catch (IOException ex)
-        {
-            Logger.getLogger(GLTextureable.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        catch (GLException ex)
-        {
-            Logger.getLogger(GLTextureable.class.getName()).log(Level.SEVERE, null, ex);
+            try
+            {
+                //read file
+                InputStream in = new FileInputStream(fileName);
+                PNGDecoder decoder = new PNGDecoder(in);
+
+                //load data into buffer
+                ByteBuffer buf = ByteBuffer.allocateDirect(4*decoder.getWidth()*decoder.getHeight());
+                decoder.decode(buf, decoder.getWidth()*4, Format.RGBA);
+                buf.flip();
+
+                in.close();
+
+                //send texture data to opengl
+
+                //create int buffer to get the id
+                IntBuffer idBuf = IntBuffer.allocate(1);
+                glGenTextures(idBuf);
+                textureID = idBuf.get();
+
+                //bind texture id so we are working with only this texture
+                glBindTexture(GL_TEXTURE_2D, textureID);
+                //apply variables
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                //send the data
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, decoder.getWidth(), decoder.getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+
+            }
+            catch(IOException ex)
+            {
+                //TODO logging information
+
+                textureID = NO_TEXTURE_ID;
+            }
         }
     }
 

@@ -1,6 +1,10 @@
+package scene;
 
+
+import static org.lwjgl.opengl.GL11.*;
 import java.util.ArrayList;
-import javax.media.opengl.GL;
+import java.nio.FloatBuffer;
+import org.lwjgl.BufferUtils;
 
 
 
@@ -26,9 +30,10 @@ public class Node
     private final float[] rotation;
 
     /** Global Transformation Matrix */
-    private final float[] m;
+    private final FloatBuffer m;
+
     /** Temp matrix to use to calculate transformation m */
-    private final float[] temp;
+    private final FloatBuffer temp;
 
     /** True when transformation matrix is needed to be recalculated */
     private boolean recalculateTransformMatrix;
@@ -51,8 +56,8 @@ public class Node
 
         resetLocalTransformations();
 
-        m = new float[16];
-        temp = new float[16];
+        m = BufferUtils.createFloatBuffer(16);
+        temp = BufferUtils.createFloatBuffer(16);
 
         recalculateTransformMatrix = true;
     }
@@ -189,17 +194,22 @@ public class Node
         setRecalculateTransformMatrix();
     }
 
+    /** Identity Matrix */
+    private static final float[] IDENTITY_MATRIX = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
 
     /**
      * Sets the identify matrix
      * @param matrix the matrix to reset
      */
-    private static void identityMatrix(float[] matrix)
+    private static void identityMatrix(FloatBuffer matrix)
     {
-        matrix[0] = 1.0f; matrix[4] = 0.0f; matrix[8] =  0.0f; matrix[12] = 0.0f;
-        matrix[1] = 0.0f; matrix[5] = 1.0f; matrix[9] =  0.0f; matrix[13] = 0.0f;
-        matrix[2] = 0.0f; matrix[6] = 0.0f; matrix[10] = 1.0f; matrix[14] = 0.0f;
-        matrix[3] = 0.0f; matrix[7] = 0.0f; matrix[11] = 0.0f; matrix[15] = 1.0f;
+        matrix.rewind();
+        matrix.put(IDENTITY_MATRIX);
     }
 
     /**
@@ -207,18 +217,19 @@ public class Node
      * @param a first matrix
      * @param b second matrix (and output)
      */
-    private static void multiplyMatrix(float[] a, float[] b)
+    private static void multiplyMatrix(FloatBuffer a, FloatBuffer b)
     {
+
         for (int col = 0; col < 4; col++)
         {
-                float p0 = b[col * 4];
-                float p1 = b[col * 4 + 1];
-                float p2 = b[col * 4 + 2];
-                float p3 = b[col * 4 + 3];
+                float p0 = b.get(col * 4);
+                float p1 = b.get(col * 4 + 1);
+                float p2 = b.get(col * 4 + 2);
+                float p3 = b.get(col * 4 + 3);
 
                 for (int row = 0; row < 4; row++)
                 {
-                        b[col * 4 + row] = a[row] * p0 + a[row + 4] * p1 + a[row + 8] * p2 + a[row + 12] * p3;
+                        b.put(col * 4 + row, a.get(row) * p0 + a.get(row + 4) * p1 + a.get(row + 8) * p2 + a.get(row + 12) * p3);
                 }
         }
     }
@@ -228,7 +239,7 @@ public class Node
      * Calculates the node global transformation matrix
      * @return this node global transformation matrix
      */
-    public float[] getNodeGlobalTransform()
+    public FloatBuffer getNodeGlobalTransform()
     {
         if(recalculateTransformMatrix)
         {
@@ -236,9 +247,9 @@ public class Node
             identityMatrix(temp);
 
             //scale
-            temp[0] = scale[0];
-            temp[5] = scale[1];
-            temp[10] = scale[2];
+            temp.put(0, scale[0]);
+            temp.put(5, scale[1]);
+            temp.put(10, scale[2]);
             multiplyMatrix(temp, m);
 
             //rotation
@@ -248,22 +259,22 @@ public class Node
             float oneMinusCos = 1.0f - cosAngle;
             float ux = rotation[1]; float uy = rotation[2]; float uz = rotation[3];
 
-            temp[0] = oneMinusCos*ux*ux + cosAngle;
-            temp[1] = oneMinusCos*ux*uy + sinAngle*uz;
-            temp[2] = oneMinusCos*ux*uz - sinAngle*uy;
-            temp[4] = oneMinusCos*ux*uy - sinAngle*uz;
-            temp[5] = oneMinusCos*uy*uy + cosAngle;
-            temp[6] = oneMinusCos*uy*uz + sinAngle*ux;
-            temp[8] = oneMinusCos*ux*uz + sinAngle*uy;
-            temp[9] = oneMinusCos*uy*uz - sinAngle*ux;
-            temp[10]= oneMinusCos*uz*uz + cosAngle;
+            temp.put(0, oneMinusCos*ux*ux + cosAngle);
+            temp.put(1, oneMinusCos*ux*uy + sinAngle*uz);
+            temp.put(2, oneMinusCos*ux*uz - sinAngle*uy);
+            temp.put(4, oneMinusCos*ux*uy - sinAngle*uz);
+            temp.put(5, oneMinusCos*uy*uy + cosAngle);
+            temp.put(6, oneMinusCos*uy*uz + sinAngle*ux);
+            temp.put(8, oneMinusCos*ux*uz + sinAngle*uy);
+            temp.put(9, oneMinusCos*uy*uz - sinAngle*ux);
+            temp.put(10, oneMinusCos*uz*uz + cosAngle);
             multiplyMatrix(temp, m);
 
             //translation
             identityMatrix(temp);
-            temp[12] = translation[0];
-            temp[13] = translation[1];
-            temp[14] = translation[2];
+            temp.put(12, translation[0]);
+            temp.put(13, translation[1]);
+            temp.put(14, translation[2]);
             multiplyMatrix(temp, m);
 
             //applies parent transform also (if it has a parent)
@@ -274,6 +285,7 @@ public class Node
             recalculateTransformMatrix = false;
         }
 
+        m.rewind();
         return m;
     }
 
@@ -282,13 +294,13 @@ public class Node
      * Initilisation method.
      * Also inits children nodes
      */
-    public void init(GL gl)
+    public void init()
     {
         //inits position
         getNodeGlobalTransform();
 
         for(Node n : childrenNodes)
-            n.init(gl);
+            n.init();
     }
 
 
@@ -308,36 +320,36 @@ public class Node
      * Function to run before drawing
      * @param gl
      */
-    protected void preDraw(GL gl)
+    protected void preDraw()
     {
-        gl.glPushMatrix();
+        glPushMatrix();
 
         //push transformation on stack
-        gl.glMultMatrixf(getNodeGlobalTransform(), 0);
+        glMultMatrix(getNodeGlobalTransform());
     }
 
     /**
      * Function to run after drawing
      * @param gl
      */
-    protected void postDraw(GL gl)
+    protected void postDraw()
     {
-        gl.glPopMatrix();
+        glPopMatrix();
     }
 
     /**
      * Draws the node.
      * Also draws children nodes
      */
-    public void draw(GL gl)
+    public void draw()
     {
-        preDraw(gl);
+        preDraw();
 
         //this node does nothing so draw children nodes
         for(Node n : childrenNodes)
-            n.draw(gl);
+            n.draw();
 
-        postDraw(gl);
+        postDraw();
     }
 
 

@@ -1,5 +1,5 @@
+package scene;
 
-import javax.media.opengl.GL;
 
 
 /**
@@ -8,7 +8,7 @@ import javax.media.opengl.GL;
  */
 public interface GLRenderable
 {
-    public void init(GL gl);
+    public void init();
     public void update();
-    public void draw(GL gl);
+    public void draw();
 }

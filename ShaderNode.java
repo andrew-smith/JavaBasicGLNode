@@ -1,203 +1,183 @@
+package scene;
 
+
+
+import static org.lwjgl.opengl.GL11.*;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.media.opengl.GL;
-
-
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.ARBShaderObjects;
+import org.lwjgl.opengl.ARBVertexShader;
+import org.lwjgl.opengl.ARBFragmentShader;
+import org.lwjgl.opengl.Util;
 
 /**
- * A Shader Node
- * @author Andrew
- */
-public class ShaderNode extends Node
-{
-    /** Default value for null shaders */
-    private static final int NO_SHADER_ID = -1;
+* The vertex and fragment shaders are setup when the box object is
+* constructed. They are applied to the GL state prior to the box
+* being drawn, and released from that state after drawing.
+* @author Stephen Jones
+*/
+public class ShaderNode extends RenderableNode {
 
-    /** Compiled vertex shader id */
-    private int vertexShader = NO_SHADER_ID;
-    /** Compiled frag shader id */
-    private int fragmentShader = NO_SHADER_ID;
+    /*
+    * if the shaders are setup ok we can use shaders, otherwise we just
+    * use default settings
+    */
+    private boolean useShader=true;
 
-    /** The complete shader program */
-    private int shaderProgram = NO_SHADER_ID;
+    /*
+    * program shader, to which is attached a vertex and fragment shaders.
+    * They are set to 0 as a check because GL will assign unique int
+    * values to each
+    */
+    private int shader=0;
+    private int vertShader=0;
+    private int fragShader=0;
 
-    /** The source code for the vertex shader */
-    private String vertexSource;
-    /** The source code for the fragment shader */
-    private String fragmentSource;
+    public ShaderNode(){
 
-    /** True if shader is ready to use */
-    private boolean shaderReady;
+        super(null);
+        /*
+        * create the shader program. If OK, create vertex
+        * and fragment shaders
+        */
+        shader=ARBShaderObjects.glCreateProgramObjectARB();
 
+        if(shader!=0){
+            vertShader=createVertShader("shaders/screen.vert");
+            fragShader=createFragShader("shaders/screen.frag");
+        }
+        else useShader=false;
 
-    /**
-     * Creates a new ShaderNode
-     * @param name the name of this node
-     */
-    public ShaderNode(String name)
-    {
-        super(name);
+        /*
+        * if the vertex and fragment shaders setup sucessfully,
+        * attach them to the shader program, link the sahder program
+        * (into the GL context I suppose), and validate
+        */
+        if(vertShader !=0 && fragShader !=0){
+            ARBShaderObjects.glAttachObjectARB(shader, vertShader);
+            ARBShaderObjects.glAttachObjectARB(shader, fragShader);
 
-        shaderReady = false;
-    }
-
-
-    /**
-     * Loads the shaders for this node
-     * @param shaderType either GL_VERTEX_SHADER or GL_FRAGMENT_SHADER
-     * @param shaderFile the filename to get the source from
-     * @return true if shader was successfully loaded
-     */
-    public boolean loadShaderSource(int shaderType, String shaderFile)
-    {
-        boolean success = false;
-        try
-        {
-            BufferedReader br = new BufferedReader(new FileReader(shaderFile));
-            String data = "";
-            String line = null;
-            while ((line = br.readLine()) != null)
-            {
-                data += line + "\n";
+            ARBShaderObjects.glLinkProgramARB(shader);
+            if (ARBShaderObjects.glGetObjectParameteriARB(shader, ARBShaderObjects.GL_OBJECT_LINK_STATUS_ARB) == GL_FALSE) {
+                printLogInfo(shader);
+                useShader=false;
             }
-            
-            if(shaderType == GL.GL_VERTEX_SHADER)
-            {
-                vertexSource = data;
+            ARBShaderObjects.glValidateProgramARB(shader);
+            if (ARBShaderObjects.glGetObjectParameteriARB(shader, ARBShaderObjects.GL_OBJECT_VALIDATE_STATUS_ARB) == GL_FALSE) {
+                printLogInfo(shader);
+                useShader=false;
             }
-            else if(shaderType == GL.GL_FRAGMENT_SHADER)
-            {
-                fragmentSource = data;
+        }else useShader=false;
+    }
+
+    /*
+    * If the shader was setup succesfully, we use the shader. Otherwise
+    * we run normal drawing code.
+    */
+    @Override
+    public void draw(){
+        if(useShader) {
+            ARBShaderObjects.glUseProgramObjectARB(shader);
+        }
+        glLoadIdentity();
+        glTranslatef(0.0f, 0.0f, -10.0f);
+        glColor3f(1.0f, 1.0f, 1.0f);//white
+
+        glBegin(GL_QUADS);
+        glVertex3f(-1.0f, 1.0f, 0.0f);
+        glVertex3f(1.0f, 1.0f, 0.0f);
+        glVertex3f(1.0f, -1.0f, 0.0f);
+        glVertex3f(-1.0f, -1.0f, 0.0f);
+        glEnd();
+
+        //release the shader
+        ARBShaderObjects.glUseProgramObjectARB(0);
+
+    }
+
+    /*
+    * With the exception of syntax, setting up vertex and fragment shaders
+    * is the same.
+    * @param the name and path to the vertex shader
+    */
+    private int createVertShader(String filename){
+        //vertShader will be non zero if succefully created
+
+        vertShader=ARBShaderObjects.glCreateShaderObjectARB(ARBVertexShader.GL_VERTEX_SHADER_ARB);
+        //if created, convert the vertex shader code to a String
+        if(vertShader==0){return 0;}
+        String vertexCode="";
+        String line;
+        try{
+            BufferedReader reader=new BufferedReader(new FileReader(filename));
+            while((line=reader.readLine())!=null){
+                vertexCode+=line + "\n";
             }
-
-            br.close();
-            success = true;
+        }catch(Exception e){
+            System.out.println("Fail reading vertex shading code");
+            return 0;
         }
-        catch (FileNotFoundException ex)
-        {
-            Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, null, ex);
-            success = false;
+        /*
+        * associate the vertex code String with the created vertex shader
+        * and compile
+        */
+        ARBShaderObjects.glShaderSourceARB(vertShader, vertexCode);
+        ARBShaderObjects.glCompileShaderARB(vertShader);
+        //if there was a problem compiling, reset vertShader to zero
+        if (ARBShaderObjects.glGetObjectParameteriARB(vertShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL_FALSE) {
+            printLogInfo(vertShader);
+            vertShader=0;
         }
-        catch (IOException ex)
-        {
-            Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-
-        return success;
+        //if zero we won't be using the shader
+        return vertShader;
     }
 
-    /**
-     * Inits this shader node
-     * @param gl
-     */
-    @Override
-    public void init(GL gl)
-    {
+    //same as per the vertex shader except for method syntax
+    private int createFragShader(String filename){
 
-        //create the shaders on the GPU
-        vertexShader = gl.glCreateShader(GL.GL_VERTEX_SHADER);
-        fragmentShader = gl.glCreateShader(GL.GL_FRAGMENT_SHADER);
-
-        //send source of vertex and compile
-        gl.glShaderSource(vertexShader, 1, new String[]{vertexSource}, null);
-        gl.glCompileShader(vertexShader);
-
-        //ensure vertex was compiled
-        int[] status = new int[1];
-        gl.glGetShaderiv(vertexShader, GL.GL_COMPILE_STATUS, status, 0);
-        if(status[0] != GL.GL_TRUE) //then something went wrong
-        {
-            Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error compiling VERTEX shader");
-            return;
+        fragShader=ARBShaderObjects.glCreateShaderObjectARB(ARBFragmentShader.GL_FRAGMENT_SHADER_ARB);
+        if(fragShader==0){return 0;}
+            String fragCode="";
+            String line;
+        try{
+            BufferedReader reader=new BufferedReader(new FileReader(filename));
+            while((line=reader.readLine())!=null){
+                fragCode+=line + "\n";
+            }
+        }catch(Exception e){
+            System.out.println("Fail reading fragment shading code");
+            return 0;
         }
-
-        //send source of frag and compile
-        gl.glShaderSource(fragmentShader, 1, new String[]{fragmentSource}, null);
-        gl.glCompileShader(fragmentShader);
-
-        //ensure frag was compiled
-        gl.glGetShaderiv(fragmentShader, GL.GL_COMPILE_STATUS, status, 0);
-        if(status[0] != GL.GL_TRUE) //then something went wrong
-        {
-            Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error compiling FRAGMENT shader");
-            return;
+        ARBShaderObjects.glShaderSourceARB(fragShader, fragCode);
+        ARBShaderObjects.glCompileShaderARB(fragShader);
+        if (ARBShaderObjects.glGetObjectParameteriARB(fragShader, ARBShaderObjects.GL_OBJECT_COMPILE_STATUS_ARB) == GL_FALSE) {
+            printLogInfo(fragShader);
+            fragShader=0;
         }
+        return fragShader;
+    }
 
-        //create the program
-        shaderProgram = gl.glCreateProgram();
+    private static boolean printLogInfo(int obj){
+        IntBuffer iVal = BufferUtils.createIntBuffer(1);
+        ARBShaderObjects.glGetObjectParameterARB(obj,ARBShaderObjects.GL_OBJECT_INFO_LOG_LENGTH_ARB, iVal);
 
-        //link shaders
-        gl.glAttachShader(shaderProgram, vertexShader);
-        gl.glAttachShader(shaderProgram, fragmentShader);
-        gl.glLinkProgram(shaderProgram);
-
-        //ensure shader was linked
-        gl.glGetProgramiv(shaderProgram, GL.GL_LINK_STATUS, status, 0);
-        if(status[0] != GL.GL_TRUE) //then something went wrong
-        {
-            Logger.getLogger(ShaderNode.class.getName()).log(Level.SEVERE, "Error linking shader program");
-            return;
+        int length = iVal.get();
+        if (length > 1) {
+            // We have some info we need to output.
+            ByteBuffer infoLog = BufferUtils.createByteBuffer(length);
+            iVal.flip();
+            ARBShaderObjects.glGetInfoLogARB(obj, iVal, infoLog);
+            byte[] infoBytes = new byte[length];
+            infoLog.get(infoBytes);
+            String out = new String(infoBytes);
+            System.out.println("Info log:\n"+out);
         }
-
-        shaderReady = true;
-        super.init(gl);
+        else return true;
+        return false;
     }
 
-    
-
-    /**
-     * Gets the shader program of this node.
-     * @return The shader program ID
-     */
-    @Override
-    public int getShaderProgram()
-    {
-        return shaderProgram;
-    }
-
-    /**
-     * Turns on this shader
-     * @param gl
-     */
-    public void turnOnShader(GL gl)
-    {
-
-        gl.glUseProgram(shaderProgram);
-    }
-
-    /**
-     * Turns off this shader
-     * @param gl
-     */
-    public void turnOffShader(GL gl)
-    {
-        if(parentNode != null)
-            gl.glUseProgram(parentNode.getShaderProgram());
-        else
-            gl.glUseProgram(0);
-    }
-
-
-
-    /**
-     * Turns the shader on and draws this (and children) nodes
-     * @param gl
-     */
-    @Override
-    public void draw(GL gl)
-    {
-        turnOnShader(gl);
-
-        super.draw(gl);
-
-        turnOffShader(gl);
-    }
 }

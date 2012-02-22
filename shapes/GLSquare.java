@@ -1,9 +1,13 @@
 
 
-package shapes;
+package scene.shapes;
 
-import javax.media.opengl.GL;
+import java.nio.IntBuffer;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.ARBVertexBufferObject;
 import scene.GLTextureable;
+import static org.lwjgl.opengl.GL11.*;
+
 
 /**
  * Basic square (1.0 x 1.0)
@@ -12,35 +16,32 @@ import scene.GLTextureable;
  */
 public class GLSquare extends GLTextureable
 {
-
     public void update()
     {
+        //empty implementation
     }
 
-    public void draw(GL gl)
+    public void draw()
     {
 
-        bindTexture(gl);
+        bindTexture();
 
-        //gl.glDisable(GL.GL_LIGHTING);
-        gl.glBegin(GL.GL_TRIANGLE_FAN);
-                gl.glColor3f(1.0f,1.0f,1.0f);
-                gl.glNormal3f(0.0f, 1.0f, 0.0f);
+        //glDisable(GL_LIGHTING);
+        glBegin(GL_TRIANGLE_FAN);
+            glColor3f(1.0f,1.0f,1.0f);
+            glNormal3f(0.0f, 1.0f, 0.0f);
 
-                gl.glTexCoord2f(0.0f, 0.0f);
-                gl.glVertex2f(-1.0f, 1.0f);
-                gl.glTexCoord2f(1.0f, 0.0f);
-                gl.glVertex2f( 1.0f, 1.0f);
-                gl.glTexCoord2f(1.0f, 1.0f);
-                gl.glVertex2f( 1.0f,-1.0f);
-                gl.glTexCoord2f(0.0f, 1.0f);
-                gl.glVertex2f(-1.0f,-1.0f);
-        gl.glEnd();
-        //gl.glEnable(GL.GL_LIGHTING);
+            glTexCoord2f(0.0f, 0.0f);
+            glVertex2f(-1.0f, 1.0f);
+            glTexCoord2f(1.0f, 0.0f);
+            glVertex2f( 1.0f, 1.0f);
+            glTexCoord2f(1.0f, 1.0f);
+            glVertex2f( 1.0f,-1.0f);
+            glTexCoord2f(0.0f, 1.0f);
+            glVertex2f(-1.0f,-1.0f);
+        glEnd();
 
-        unbindTexture(gl);
-
-
+        unbindTexture();
     }
 
 }

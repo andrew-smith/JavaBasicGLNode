@@ -1,5 +1,6 @@
+package scene;
 
-import javax.media.opengl.GL;
+
 
 /**
  * Main Scene class that handles the node system
@@ -35,12 +36,11 @@ public class Scene
 
     /**
      * Inits the scene and the nodes
-     * @param gl the graphics to use
      */
-    public void init(GL gl)
+    public void init()
     {
         //init node tree
-        rootNode.init(gl);
+        rootNode.init();
     }
 
 
@@ -58,12 +58,11 @@ public class Scene
 
     /**
      * Draws the scene and the nodes
-     * @param gl the graphics to use
      */
-    public void draw(GL gl)
+    public void draw()
     {
 
         //draw node tree
-        rootNode.draw(gl);
+        rootNode.draw();
     }
 }
